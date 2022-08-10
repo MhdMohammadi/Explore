@@ -2,7 +2,6 @@ import habitat
 import matplotlib.pyplot as plt
 import os
 
-
 # Single-tone pattern is used to avoid "kernel dying problem"
 main_env = None
 
