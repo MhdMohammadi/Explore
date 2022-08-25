@@ -29,6 +29,7 @@ class RandomAgent:
         return obs
 
     # Only habitat
+    # TODO: You can create a set without stop, and make this random sampling faster!
     def get_random_action(self):
         # Choose a non-stop action
         a = None
