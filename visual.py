@@ -20,14 +20,23 @@ def save_topdown_map(env: habitat.Env, resolution, address):
 def get_seen_map(env: habitat.Env, agent: Agent.RandomAgent, resolution):
     meters_per_pixel = maps.calculate_meters_per_pixel(map_resolution=resolution, pathfinder=env.sim.pathfinder)
     topdown_map = get_topdown_map(env, resolution)
-    seen_map = np.zeros(topdown_map.shape)
+    seen_map = np.zeros(topdown_map.shape).astype(np.int)
 
     for state in agent.states:
         pos = state.position # Y Z X ?! 
         normalized_pos = ((pos - env.sim.pathfinder.get_bounds()[0]) / meters_per_pixel).astype(int)
         seen_map[normalized_pos[2], normalized_pos[0]] = 1
     
-    seen_map = seen_map / seen_map.max()
+    # normalized_seen_map = np.zeros(seen_map.shape)
+    # values = np.unique(seen_map)
+    # print(values)
+    # for i, value in enumerate(values):
+    #     normalized_seen_map[seen_map == value] = (i + 1) / (len(values) + 1)
+    # seen_map = normalized_seen_map
+
+    # print(seen_map.max())
+    # print(np.unique(seen_map))
+    # seen_map = np.log(seen_map + 1)
     return seen_map
 
 def save_seen_map(env, agent, resolution, address):

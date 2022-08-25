@@ -8,7 +8,7 @@ import visual
 class RandomExploration:
     def __init__(self, args):
         self.env = get_environment(sim=args.sim, config_path=args.config_path)
-        self.agent = RandomAgent(self.env)
+        self.agent = RandomAgent(self.env, args)
         self.steps = args.steps
         self.resolution = args.resolution
 
