@@ -12,7 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('--resolution', type=int, default=1024)
     parser.add_argument('--topdown_map_path', type=str, default='images/topdown_map')
     parser.add_argument('--seen_map_path', type=str, default='images/seen_map')
-    parser.add_argument('--agent_mode', type='str', default='random', help='random, repeated_random, go_explore')
+    parser.add_argument('--agent_mode', type=str, default='repeated_random', help='random, repeated_random, go_explore')
     parser.add_argument('--agent_repeat', type=int, default=5)
     # Parse hyperpatemeres
     args = parser.parse_args()

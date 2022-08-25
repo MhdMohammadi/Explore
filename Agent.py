@@ -1,4 +1,4 @@
-
+import numpy as np
 import habitat
 from habitat.core.env import Env
 
@@ -11,13 +11,14 @@ class RandomAgent:
         self.states = []
         self.mode = args.agent_mode
         self.last_action = None
-        self.max_repeat = args.agent_repeat
-        self.current_repeat = 0
+        self.max_repeats = args.agent_repeat
+        self.remaining_repeats = 0
         self.action_space = []
         self.initialize_action_space()
+        print(self.action_space)
 
     # Only works for habiatat
-    def initialize_action_sapce(self):
+    def initialize_action_space(self):
         self.action_space.append(self.get_action('right'))
         self.action_space.append(self.get_action('left'))
         if self.mode == 'random':
@@ -54,17 +55,18 @@ class RandomAgent:
     # TODO: You can create a set without stop, and make this random sampling faster!
     def get_random_action(self):
         if self.mode == 'random':
-            # Choose a non-stop action
-            a = None
-            while a is None or a['action'] == 'STOP':
-                a = self.env.action_space.sample()
-        if self.mode == 'repeated_random':
-            if self.last_action == None:
-                while True:
-                    self.last_action 
+            return np.random.choice(self.action_space)
 
-            pass
-        return a
+        if self.mode == 'repeated_random':
+            if self.last_action is None:
+                self.last_action = np.random.choice(self.action_space)
+                # TODO: I'm not sure if we should set this variable equal to max_repeats, maybe we should sample this as well
+                self.remaining_repeats = self.max_repeats
+            if self.remaining_repeats == 0:
+                self.last_action = None
+                return self.get_action('forward')
+            self.remaining_repeats -= 1
+            return self.last_action
     
     # Only Habitat
     def get_state(self):
