@@ -1,6 +1,10 @@
+from cgi import print_arguments
+from habitat.core.simulator import Observations
 import numpy as np
 import habitat
 from habitat.core.env import Env
+from tqdm import tqdm
+import os
 
 # This agent takes random actions in an environment in order to explroe the state space
 class RandomAgent:
@@ -52,7 +56,7 @@ class RandomAgent:
             return {'action': 'TURN_LEFT', 'action_args': None}
 
     # Only habitat
-    # TODO: You can create a set without stop, and make this random sampling faster!
+    # TODO: Different ways of getting a random action
     def get_random_action(self):
         if self.mode == 'random':
             return np.random.choice(self.action_space)
@@ -72,4 +76,39 @@ class RandomAgent:
     def get_state(self):
         return self.env.sim.get_agent(0).get_state()
         
-    # TODO: Different ways of getting a random action
+    # address has to be absolute !
+    def save_attributes(self, address):
+        print('--------')
+        print('saving actions list has been started')
+        with open('actions.npy', 'wb') as f:
+            np.save(f, self.actions)
+        print('--------')
+        
+        last_dir = os.getcwd()
+        os.chdir(f'{address}')
+ 
+        os.mkdir(f'{address}/observations')
+        os.chdir('observations')
+        print('--------')
+        print('saving observations has been started')
+        for i in tqdm(range(len(self.observations))):
+            with open(f'obs_{i}.npy', 'wb') as f:
+                np.save(f, self.observations[i])
+        print('--------')
+
+        os.chdir('..')
+        os.mkdir(f'{address}/states')
+        print('--------')
+        print('saving states has been started')
+        for i in tqdm(range(len(self.states))):
+            with open(f'state_{i}.npy', 'wb') as f:
+                np.save(f, self.states[i])
+        print('--------')
+        os.chdir('..')
+
+        os.chdir(last_dir)
+
+        print('!! saving has been successfully finished !!')
+
+        pass
+    
