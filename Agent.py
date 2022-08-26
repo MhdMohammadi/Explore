@@ -61,7 +61,7 @@ class RandomAgent:
             if self.last_action is None:
                 self.last_action = np.random.choice(self.action_space)
                 # TODO: I'm not sure if we should set this variable equal to max_repeats, maybe we should sample this as well
-                self.remaining_repeats = self.max_repeats
+                self.remaining_repeats = np.random.randint(1, self.max_repeats + 1)
             if self.remaining_repeats == 0:
                 self.last_action = None
                 return self.get_action('forward')

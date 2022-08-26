@@ -17,7 +17,7 @@ class RandomExploration:
             self.agent.take_action()
 
         visual.save_topdown_map(self.env, self.resolution, f'{topdown_map_path}.jpg')
-        visual.save_seen_map(self.env, self.agent, self.resolution, f'{seen_map_path}{i}.jpg')
+        visual.save_seen_map(self.env, self.agent, self.resolution, f'{seen_map_path}_{self.agent.max_repeats}.jpg')
 
 
 
