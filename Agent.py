@@ -69,6 +69,9 @@ class RandomAgent:
     # Only habitat
     # TODO: Different ways of getting a random action
     def get_random_action(self):
+        if self.mode == '4_direction':
+            return np.random.choice(self.action_space) 
+
         if self.mode == 'random':
             return np.random.choice(self.action_space)
 

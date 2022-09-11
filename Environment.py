@@ -32,8 +32,6 @@ def get_environment(sim=None, config_path=None):
         config_file = habitat.get_config(config_path)
         main_env = create_env(config_file)
         main_env.reset()
-        for i in range(20):
-            print(main_env.action_space.sample())
         # change_actions(main_env)
         # print(main_env.sim.action_space)
         # print(main_env.sim.get_agent(0))
@@ -81,7 +79,7 @@ class NoisyMoveLeft(habitat_sim.SceneNodeControl):
         scene_node: habitat_sim.SceneNode,
         actuation_spec: NoisyMoveActuationSpec,
     ):
-        print(f"moving left with noise_amount={actuation_spec.noise_amount}")
+        # print(f"moving left with noise_amount={actuation_spec.noise_amount}")
         _move_impl(
             scene_node,
             actuation_spec.move_amount,
@@ -97,9 +95,7 @@ class NoisyMoveRight(habitat_sim.SceneNodeControl):
         scene_node: habitat_sim.SceneNode,
         actuation_spec: NoisyMoveActuationSpec,
     ):
-        print(
-            f"moving right with noise_amount={actuation_spec.noise_amount}"
-        )
+        # print(f"moving right with noise_amount={actuation_spec.noise_amount}")
         _move_impl(
             scene_node,
             actuation_spec.move_amount,
@@ -114,9 +110,7 @@ class NoisyMoveBackward(habitat_sim.SceneNodeControl):
         scene_node: habitat_sim.SceneNode,
         actuation_spec: NoisyMoveActuationSpec,
     ):
-        print(
-            f"moving back with noise_amount={actuation_spec.noise_amount}"
-        )
+        # print(f"moving back with noise_amount={actuation_spec.noise_amount}")
         _move_impl(
             scene_node,
             actuation_spec.move_amount,
