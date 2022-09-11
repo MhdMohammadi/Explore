@@ -15,6 +15,8 @@ class RandomExploration:
     def start(self, topdown_map_path, seen_map_path):
         for i in tqdm(range(self.steps)):
             self.agent.take_action()
+        
+        print(self.agent.observations[0].shape)
 
         visual.save_topdown_map(self.env, self.resolution, f'{topdown_map_path}.jpg')
         visual.save_seen_map(self.env, self.agent, self.resolution, f'{seen_map_path}_{self.agent.max_repeats}.jpg')

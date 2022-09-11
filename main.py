@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
     parser.add_argument('--sim', type=str, default='habitat', help='habitat')
     parser.add_argument('--config_path', type=str, default='configs/datasets/pointnav/gibson.yaml')
-    parser.add_argument('--steps', type=int, default=30000)
+    parser.add_argument('--steps', type=int, default=300)
     parser.add_argument('--resolution', type=int, default=1024)
     parser.add_argument('--topdown_map_path', type=str, default='images/topdown_map')
     parser.add_argument('--seen_map_path', type=str, default='images/seen_map')

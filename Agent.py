@@ -40,12 +40,14 @@ class RandomAgent:
 
         # If this is the first action, current state and observation has to be stored
         if len(self.observations) == 0:
-            self.observations.append(self.env.render(mode='rgb'))
+            self.observations.append(self.get_full_obs())
+            # self.observations.append(self.env.render(mode='rgb'))
             self.states.append(self.get_state())
 
         # execute the selected action     
         obs = self.env.step(action)
-        self.observations.append(obs['rgb'])
+        self.observations.append(self.get_full_obs())
+        # self.observations.append(obs['rgb'])
         
         # This thing only works on habitat, comment if you are using other simulators
         self.states.append(self.get_state())
@@ -90,6 +92,18 @@ class RandomAgent:
     def get_state(self):
         return self.env.sim.get_agent(0).get_state()
         
+    def get_full_obs(self):
+        res = None
+        steps = 3
+        for i in range(steps * 4):
+            if i % steps == 0:
+                if res is None:
+                    res = self.env.render(mode='rgb')
+                else:
+                    res = np.concatenate((res, self.env.render(mode='rgb')), axis=2) # shape format : HWC 
+            self.env.step(self.get_action('turn_right'))
+        return res
+    
     # address has to be absolute !
     def save_attributes(self, address):
         print('--------')

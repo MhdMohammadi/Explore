@@ -32,6 +32,7 @@ def get_environment(sim=None, config_path=None):
         config_file = habitat.get_config(config_path)
         main_env = create_env(config_file)
         main_env.reset()
+        print(main_env.render(mode='rgb').shape)
         # change_actions(main_env)
         # print(main_env.sim.action_space)
         # print(main_env.sim.get_agent(0))
