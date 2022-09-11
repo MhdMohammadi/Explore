@@ -19,14 +19,19 @@ class RandomAgent:
         self.remaining_repeats = 0
         self.action_space = []
         self.initialize_action_space()
-        print(self.action_space)
 
     # Only works for habiatat
     def initialize_action_space(self):
-        self.action_space.append(self.get_action('right'))
-        self.action_space.append(self.get_action('left'))
-        if self.mode == 'random':
+        if self.mode == '4_direction':
             self.action_space.append(self.get_action('forward'))
+            self.action_space.append(self.get_action('left'))
+            self.action_space.append(self.get_action('right'))
+            self.action_space.append(self.get_action('backward'))
+        else:
+            self.action_space.append(self.get_action('turn_right'))
+            self.action_space.append(self.get_action('turn_left'))
+            if self.mode == 'random':
+                self.action_space.append(self.get_action('forward'))
 
     def take_action(self):
         # select an action for this step
@@ -50,9 +55,15 @@ class RandomAgent:
     def get_action(self, direction:str):
         if direction == 'forward':
             return {'action': 'MOVE_FORWARD', 'action_args': None}
-        if direction == 'right':
-            return {'action': 'TURN_RIGHT', 'action_args': None}
         if direction == 'left':
+            return {'action': 'MOVE_LEFT', 'action_args': None}
+        if direction == 'right':
+            return {'action': 'MOVE_RIGHT', 'action_args': None}
+        if direction == 'backward':
+            return {'action': 'MOVE_BACKWARD', 'action_args': None}
+        if direction == 'turn_right':
+            return {'action': 'TURN_RIGHT', 'action_args': None}
+        if direction == 'turn_left':
             return {'action': 'TURN_LEFT', 'action_args': None}
 
     # Only habitat

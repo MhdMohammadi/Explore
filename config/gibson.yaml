@@ -1,0 +1,25 @@
+ENVIRONMENT:
+  MAX_EPISODE_STEPS: 5000000
+
+SIMULATOR:
+  TURN_ANGLE: 30
+  TILT_ANGLE: 30
+  ACTION_SPACE_CONFIG: "v1"
+  AGENT_0:
+    SENSORS: ['RGB_SENSOR']
+    HEIGHT: 0.88
+    RADIUS: 0.18
+  HABITAT_SIM_V0:
+    GPU_DEVICE_ID: 0
+    ALLOW_SLIDING: False
+  RGB_SENSOR:
+    WIDTH: 640
+    HEIGHT: 480
+    HFOV: 150
+    POSITION: [0, 0.88, 0]
+  FORWARD_STEP_SIZE: 0.25
+
+DATASET:
+  TYPE: PointNav-v1
+  SPLIT: train
+  DATA_PATH: data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz
