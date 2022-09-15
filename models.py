@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models.resnet as resnet
 from collections import namedtuple, deque
+import numpy as np
 import random
 
 ## Discription of the net for learning Q-values
@@ -32,7 +33,7 @@ class QNet(nn.Module):
         new_dim = get_new_dim(config.obs_dim, 8, 4, 0)
         new_dim = get_new_dim(config.obs_dim, 4, 2, 0)
         new_dim = get_new_dim(config.obs_dim, 3, 1, 0)
-        new_dim = new_dim * 64
+        new_dim = np.prod(new_dim) * 64 
 
         ## state-action encode
         self.sa_encoder = nn.Sequential(
@@ -81,9 +82,9 @@ class ReplayMemory(object):
         states = [self.memory[id].state for id in indices]
         actions = [self.memory[id].action for id in indices] 
 
-        max_delta_indices = np.array([self.end_idx[self.memory[id].episode] for id in indices])
+        max_delta_indices = np.array([self.end_idx[self.memory[id].episode] - self.memory[id].idx for id in indices])
         delta_indices = np.random.geometric(p, size=batch_size)
-        positive_indices = np.minimum(indices + delta_indices, max_delta_indices)
+        positive_indices = indices + np.minimum(delta_indices, max_delta_indices)
 
         negative_indices = np.random.randint(0, len(self.memory), size=batch_size)
 

@@ -28,17 +28,44 @@ def get_environment(sim=None, config_path=None):
         if main_env is not None:
             main_env.close()
         os.chdir('../habitat-lab')
-        # print(habitat.get_config(config_path))
         config_file = habitat.get_config(config_path)
         main_env = create_env(config_file)
         main_env.reset()
-        print(main_env.render(mode='rgb').shape)
-        # change_actions(main_env)
-        # print(main_env.sim.action_space)
-        # print(main_env.sim.get_agent(0))
         os.chdir('../Explore')
     return main_env
 
+all_actions = [{'action': 'MOVE_FORWARD', 'action_args': None}, 
+            {'action': 'MOVE_LEFT', 'action_args': None}, 
+            {'action': 'MOVE_RIGHT', 'action_args': None}, 
+            {'action': 'MOVE_BACKWARD', 'action_args': None}, 
+            {'action': 'TURN_RIGHT', 'action_args': None}, 
+            {'action': 'TURN_LEFT', 'action_args': None}]
+
+# left, right, forward
+def get_action(direction:str):
+    if direction == 'forward':
+        return {'action': 'MOVE_FORWARD', 'action_args': None}
+    if direction == 'left':
+        return {'action': 'MOVE_LEFT', 'action_args': None}
+    if direction == 'right':
+        return {'action': 'MOVE_RIGHT', 'action_args': None}
+    if direction == 'backward':
+        return {'action': 'MOVE_BACKWARD', 'action_args': None}
+    if direction == 'turn_right':
+        return {'action': 'TURN_RIGHT', 'action_args': None}
+    if direction == 'turn_left':
+        return {'action': 'TURN_LEFT', 'action_args': None}
+
+def get_id_by_action(action):
+    global all_actions
+    for id, a in enumerate(all_actions):
+        if action['action'] == a['action']:
+            return id
+
+def get_action_by_id(id):
+    global all_actions
+    return all_actions[id]
+    
 @attr.s(auto_attribs=True, slots=True)
 class NoisyMoveActuationSpec:
     move_amount: float
