@@ -5,6 +5,7 @@ from models import QNet, ReplayMemory
 from Environment import get_environment
 from Agent import RandomAgent
 
+
 def train(config):
     net = QNet(config)
     rb  = ReplayMemory(config)
@@ -12,10 +13,15 @@ def train(config):
     env: habitat.Env
     agent = RandomAgent(env, config)
     
-    # for episode in range(config.episode):
-    #     env.reset()
-    #     current_state = env.render(mode='rgb')
-    #     ## TODO: sample the initial and the goal state
+    for episode in range(config.episode):
+        env.reset()
+        current_state = env.render(mode='rgb')
+
+        initial_loc = env.sim.sample_navigable_point()
+        agent_state = env.sim.get_agent_state()
+        agent_state.position = initial_loc
+        env.sim.get_agent(0).set_state(agent_state)
+        final_loc = env.sim.sample_navigable_point()
 
     #     for step in range(config.episode_len):
     #         ## TODO find the action that we have to take in this step
