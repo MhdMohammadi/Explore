@@ -1,3 +1,4 @@
+from habitat.core.dataset import T
 import matplotlib.pyplot as plt
 import os
 
@@ -21,7 +22,7 @@ main_env = None
 MOVE_DIS = 0.25
 
 # This function is creating an environment based on the given inputs
-# This function is assuming that habitat-lab and project's main folder are in the same directory
+#### This function is assuming that habitat-lab and project's main folder are in the same directory #### 
 def get_environment(sim=None, config_path=None):
     global main_env
     if sim == 'habitat':
@@ -34,6 +35,7 @@ def get_environment(sim=None, config_path=None):
         os.chdir('../Explore')
     return main_env
 
+# All actions -> 1 to 4 have to be moving in four directions
 all_actions = [{'action': 'MOVE_FORWARD', 'action_args': None}, 
             {'action': 'MOVE_LEFT', 'action_args': None}, 
             {'action': 'MOVE_RIGHT', 'action_args': None}, 
@@ -41,7 +43,7 @@ all_actions = [{'action': 'MOVE_FORWARD', 'action_args': None},
             {'action': 'TURN_RIGHT', 'action_args': None}, 
             {'action': 'TURN_LEFT', 'action_args': None}]
 
-# left, right, forward
+# get action by name
 def get_action(direction:str):
     if direction == 'forward':
         return {'action': 'MOVE_FORWARD', 'action_args': None}
@@ -65,7 +67,14 @@ def get_id_by_action(action):
 def get_action_by_id(id):
     global all_actions
     return all_actions[id]
-    
+
+def is_done(current_loc, goal_loc) -> bool:
+    dis = (current_loc - goal_loc).pow(2).sum()
+    threshold = 0.01
+    return (dis < threshold)
+
+
+# The functions below are provided to add 3 new actions to habitat's environment -> Move left - right - backwards
 @attr.s(auto_attribs=True, slots=True)
 class NoisyMoveActuationSpec:
     move_amount: float
@@ -212,6 +221,7 @@ class MoveBackward(SimulatorTaskAction):
     def step(self, *args, **kwargs):
         return self._sim.step(HabitatSimActions.MOVE_BACKWARD)
 
+# This function creates a new environemtn with three new actions which are hardcoded
 def create_env(config):
     HabitatSimActions.extend_action_space("MOVE_LEFT")
     HabitatSimActions.extend_action_space("MOVE_RIGHT")

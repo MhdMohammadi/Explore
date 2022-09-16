@@ -1,3 +1,5 @@
+from calendar import c
+from xxlimited import new
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,10 +19,12 @@ class QNet(nn.Module):
     
     def __init__(self, config) -> None:
         super().__init__()
+        
+        self.action_dim = config.action_dim
 
         # output the new dimensions after a cnn layer
         def get_new_dim(dim, kernel, stride, padding):
-            return (dim - kernel + 2 * padding + stride - 1) / stride 
+            return (dim - kernel + 1 + 2 * padding + stride - 1) // stride 
 
         # image encoder -> equal to atari torso from acme.jax.networks.atari
         self.image_encoder = self.state_backbone = nn.Sequential(
@@ -30,9 +34,9 @@ class QNet(nn.Module):
             nn.Flatten(),
         )
 
-        new_dim = get_new_dim(config.obs_dim, 8, 4, 0)
-        new_dim = get_new_dim(config.obs_dim, 4, 2, 0)
-        new_dim = get_new_dim(config.obs_dim, 3, 1, 0)
+        new_dim = get_new_dim(np.array(config.obs_dim), 8, 4, 0)
+        new_dim = get_new_dim(new_dim, 4, 2, 0)
+        new_dim = get_new_dim(new_dim, 3, 1, 0)
         new_dim = np.prod(new_dim) * 64 
 
         ## state-action encode
@@ -51,6 +55,9 @@ class QNet(nn.Module):
 
 
     def forward(self, current_states, current_actions, goal_states):
+        current_states = current_states.permute(0, 3, 1, 2)
+        goal_states = goal_states.permute(0, 3, 1, 2)
+        
         current_states = self.image_encoder(current_states)
         goal_states = self.image_encoder(goal_states)
 
@@ -59,6 +66,19 @@ class QNet(nn.Module):
         s_repr = self.s_encoder(goal_states)
 
         return torch.inner(sa_repr, s_repr)
+
+    def get_best_action(self, current_states, goal_states, device, greedy=False):
+        all_actions = F.one_hot(torch.arange(0, self.action_dim))
+        batch_size = current_states.shape[0]
+
+        results = torch.zeros((batch_size, self.action_dim)).to(device)
+        with torch.no_grad():
+            for i in range(self.action_dim):
+                actions = all_actions[i].repeat(batch_size, 1)
+                results[:, i] = self.forward(current_states, actions, goal_states)
+
+        return results.argmax(axis=1)
+
 
 # Transitions stored in the reply buffer
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'episode', 'idx'))

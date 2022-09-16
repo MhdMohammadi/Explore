@@ -73,7 +73,6 @@ class RandomAgent:
         if self.mode == 'repeated_random':
             if self.last_action is None:
                 self.last_action = np.random.choice(self.action_space)
-                # TODO: I'm not sure if we should set this variable equal to max_repeats, maybe we should sample this as well
                 self.remaining_repeats = np.random.randint(1, self.max_repeats + 1)
             if self.remaining_repeats == 0:
                 self.last_action = None
@@ -87,7 +86,7 @@ class RandomAgent:
         
     def get_full_obs(self):
         res = None
-        steps = 3
+        steps = 1
         for i in range(steps * 4):
             if i % steps == 0:
                 if res is None:
@@ -95,7 +94,12 @@ class RandomAgent:
                 else:
                     res = np.concatenate((res, self.env.render(mode='rgb')), axis=2) # shape format : HWC 
             self.env.step(get_action('turn_right'))
-        return res
+        return res.astype(np.float32)
+    
+    def set_position(self, position):
+        agent_state = self.get_state()
+        agent_state.position = position
+        self.env.sim.get_agent(0).set_state(agent_state)
     
     # # address has to be absolute !
     # def save_attributes(self, address):
