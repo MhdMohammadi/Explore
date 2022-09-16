@@ -69,7 +69,7 @@ def get_action_by_id(id):
     return all_actions[id]
 
 def is_done(current_loc, goal_loc) -> bool:
-    dis = (current_loc - goal_loc).pow(2).sum()
+    dis = ((current_loc - goal_loc)**2).sum()
     threshold = 0.01
     return (dis < threshold)
 

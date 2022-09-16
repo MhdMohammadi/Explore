@@ -35,8 +35,8 @@ class RandomAgent:
             if self.mode == 'random':
                 self.action_space.append(get_action('forward'))
 
-    def take_action(self, dir=None):
-        if dir is None:
+    def take_action(self, action):
+        if action is None:
             # select an action for this step
             action = self.get_random_action()
 

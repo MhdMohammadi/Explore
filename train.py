@@ -8,13 +8,14 @@ import torch.nn as nn
 import torch
 import numpy as np
 from tqdm import tqdm
+from visual import get_unseen_map, put_mark_on_map
+import matplotlib.pyplot as plt
+
 
 net: QNet = None
 rb: ReplayMemory = None
 optimizer: optim.Adam = None
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-print(device)
 
 def optimize_model(config):
     global net, rb, optimizer
@@ -38,7 +39,7 @@ def optimize_model(config):
 def train(config):
     global net, rb, optimizer
     print('--- start creating models and utilities ---')
-    net = QNet(config).to(device)
+    net = QNet(config, device).to(device)
     optimizer = optim.Adam(net.parameters(), lr=config.lr)
     rb  = ReplayMemory(config)
 
@@ -52,19 +53,24 @@ def train(config):
         print(f'--- epislon {episode} has been started ---')
 
         env.reset()
-        current_state = agent.get_full_obs()
-        # print(current_state.shape)
-
+ 
+        map = get_unseen_map(env, config.resolution)
+        
         initial_loc = env.sim.sample_navigable_point()
         goal_loc = env.sim.sample_navigable_point()
 
         agent.set_position(goal_loc)
+        put_mark_on_map(map, env)
         goal_state = agent.get_full_obs()
 
         agent.set_position(initial_loc)
+        put_mark_on_map(map, env)
         current_state = agent.get_full_obs()
 
+
         for step in tqdm(range(config.episode_len)):
+        # for step in range(config.episode_len):
+            put_mark_on_map(map, env)
             best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
                                                  torch.tensor(goal_state).to(device).unsqueeze(0), device)
             best_action = get_action_by_id(best_action_id)
@@ -72,14 +78,17 @@ def train(config):
             agent.take_action(best_action)
             next_state = agent.get_full_obs()
             
-            rb.push(current_state, best_action, next_state, episode, step)
+            rb.push((current_state, best_action, next_state, episode, step))
 
             optimize_model(config)
 
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
                 break
         
+            
             current_state = next_state
+        
+        plt.imsave(f'map{episode}.jpg', map)
 
 
 
@@ -112,7 +121,7 @@ if __name__ == '__main__':
 
     # Q-value learning network structure
     parser.add_argument('--lr', type=float, default=0.1) # TODO : needs to be set appropriately
-    parser.add_argument('--obs_dim', type=tuple, default=(128, 128)) # TODO: is it a good choice?
+    parser.add_argument('--obs_dim', type=tuple, default=(640, 480)) # TODO: is it a good choice?
     parser.add_argument('--obs_channel', type=int, default=12) # Four images, each has three channels
     parser.add_argument('--latent_dim', type=int, default=32) # TODO: is it a good choice?
     parser.add_argument('--action_dim', type=int, default=4) # {Forward, Backward, Left, Right}
@@ -124,7 +133,7 @@ if __name__ == '__main__':
 
     # Running configurations
     parser.add_argument('--episode', type=int, default=1)
-    parser.add_argument('--episode_len', type=int, default=100)
+    parser.add_argument('--episode_len', type=int, default=1000)
     
     # Enivornment and Agent configurations
     parser.add_argument('--sim', type=str, default='habitat', help='habitat')

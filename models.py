@@ -17,11 +17,12 @@ import random
 
 class QNet(nn.Module):
     
-    def __init__(self, config) -> None:
+    def __init__(self, config, device) -> None:
         super().__init__()
         
         self.action_dim = config.action_dim
-
+        self.device = device
+        
         # output the new dimensions after a cnn layer
         def get_new_dim(dim, kernel, stride, padding):
             return (dim - kernel + 1 + 2 * padding + stride - 1) // stride 
@@ -67,11 +68,11 @@ class QNet(nn.Module):
 
         return torch.inner(sa_repr, s_repr)
 
-    def get_best_action(self, current_states, goal_states, device, greedy=False):
-        all_actions = F.one_hot(torch.arange(0, self.action_dim))
+    def get_best_action(self, current_states, goal_states, greedy=False):
+        all_actions = F.one_hot(torch.arange(0, self.action_dim)).to(self.device)
         batch_size = current_states.shape[0]
 
-        results = torch.zeros((batch_size, self.action_dim)).to(device)
+        results = torch.zeros((batch_size, self.action_dim)).to(self.device)
         with torch.no_grad():
             for i in range(self.action_dim):
                 actions = all_actions[i].repeat(batch_size, 1)

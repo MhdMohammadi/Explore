@@ -4,6 +4,7 @@ import habitat
 import Agent
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
 # This file provides useful tools for visualization, demonstration, etc.
 
@@ -41,3 +42,19 @@ def get_seen_map(env: habitat.Env, agent: Agent.RandomAgent, resolution):
 
 def save_seen_map(env, agent, resolution, address):
     plt.imsave(address, get_seen_map(env, agent, resolution))
+    
+
+def get_unseen_map(env: habitat.Env, resolution):
+    topdown_map = get_topdown_map(env, resolution)
+    unseen_map = np.zeros(topdown_map.shape)
+    return unseen_map
+
+def put_mark_on_map(map, env):
+    meters_per_pixel = maps.calculate_meters_per_pixel(map_resolution=1024, pathfinder=env.sim.pathfinder)
+    pos = env.sim.get_agent_state().position - env.sim.pathfinder.get_bounds()[0]
+    x, y = int(pos[0] / meters_per_pixel), int(pos[2] / meters_per_pixel)
+    cv2.circle(map, (x, y), 3, 1, 10)
+    return map
+
+
+    
