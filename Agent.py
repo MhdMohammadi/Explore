@@ -6,10 +6,11 @@ from habitat.core.env import Env
 from tqdm import tqdm
 import os
 from Environment import get_action
+import torch
 
 # This agent takes random actions in an environment in order to explroe the state space
 class RandomAgent:
-    def __init__(self, env: habitat.Env, args):
+    def __init__(self, env: habitat.Env, args, device):
         self.env = env
         self.actions = []
         self.observations = []
@@ -21,6 +22,7 @@ class RandomAgent:
         self.action_space = []
         self.initialize_action_space()
         self.save = args.agent_save
+        self.device = device
 
     # Only works for habiatat
     def initialize_action_space(self):
@@ -95,7 +97,11 @@ class RandomAgent:
                     res = np.concatenate((res, self.env.render(mode='rgb')), axis=2) # shape format : HWC 
             self.env.step(get_action('turn_right'))
         return res.astype(np.float32)
-    
+        # return torch.from_numpy(res.astype(np.float32))
+        # return torch.from_numpy(res.astype(np.float32)).to(self.device)
+
+
+
     def set_position(self, position):
         agent_state = self.get_state()
         agent_state.position = position

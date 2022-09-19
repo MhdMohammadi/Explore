@@ -56,9 +56,10 @@ class QNet(nn.Module):
 
 
     def forward(self, current_states, current_actions, goal_states):
-        current_states = current_states.permute(0, 3, 1, 2)
-        goal_states = goal_states.permute(0, 3, 1, 2)
-        
+        current_states = torch.tensor(current_states).to(self.device).permute(0, 3, 1, 2)
+        goal_states = torch.tensor(goal_states).to(self.device).permute(0, 3, 1, 2)
+        current_actions = F.one_hot(torch.tensor(current_actions).to(self.device))
+
         current_states = self.image_encoder(current_states)
         goal_states = self.image_encoder(goal_states)
 
@@ -68,17 +69,23 @@ class QNet(nn.Module):
 
         return torch.inner(sa_repr, s_repr)
 
-    def get_best_action(self, current_states, goal_states, greedy=False):
+    def get_best_action(self, current_states, goal_states, greedy=False, p=0):
+        if greedy:
+            rnd = np.random.uniform(0, 1)
+            if rnd < p:
+                return np.random.randint(0, self.action_dim)
+
         all_actions = F.one_hot(torch.arange(0, self.action_dim)).to(self.device)
         batch_size = current_states.shape[0]
 
         results = torch.zeros((batch_size, self.action_dim)).to(self.device)
         with torch.no_grad():
             for i in range(self.action_dim):
-                actions = all_actions[i].repeat(batch_size, 1)
+                actions = [i] * batch_size
                 results[:, i] = self.forward(current_states, actions, goal_states)
 
-        return results.argmax(axis=1)
+
+        return results.argmax(axis=1).item()
 
 
 # Transitions stored in the reply buffer
@@ -87,8 +94,9 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'episode
 # Reply buffer to save recent transitions
 class ReplayMemory(object):
 
-    def __init__(self, config):
+    def __init__(self, config, device):
         self.memory = deque([], maxlen=config.reply_buffer_len)
+        self.device = device
         self.end_idx = {}
 
     def push(self, args):
@@ -98,9 +106,17 @@ class ReplayMemory(object):
         self.memory.append(data)
 
     def sample(self, batch_size, p):
+        # transitions = random.sample(self.memory, batch_size) 
+        # return Transition(*zip(*transitions))
+
+        # return random.sample(self.memory, batch_size)
+        # return None
+
         indices = np.array(random.sample(range(0, len(self.memory)), k=batch_size))
 
+        # states = [torch.from_numpy(self.memory[id].state) for id in indices]
         states = [self.memory[id].state for id in indices]
+
         actions = [self.memory[id].action for id in indices] 
 
         max_delta_indices = np.array([self.end_idx[self.memory[id].episode] - self.memory[id].idx for id in indices])
@@ -111,8 +127,13 @@ class ReplayMemory(object):
 
         positive_states = [self.memory[id].state for id in positive_indices]
         negative_states = [self.memory[id].state for id in negative_indices]
+        # positive_states = [torch.from_numpy(self.memory[id].state) for id in positive_indices]
+        # negative_states = [torch.from_numpy(self.memory[id].state) for id in negative_indices]
 
-        return [states, actions, positive_states, negative_states]
+
+        return [states, np.array(actions), positive_states, negative_states]
+
+        # return [np.array(states), np.array(actions), np.array(positive_states), np.array(negative_states)]
 
     def __len__(self):
         return len(self.memory)

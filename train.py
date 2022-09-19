@@ -5,6 +5,7 @@ from Environment import is_done, get_environment, get_action_by_id
 from Agent import RandomAgent
 import torch.optim as optim
 import torch.nn as nn
+import torch.nn.functional as F 
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -16,36 +17,50 @@ net: QNet = None
 rb: ReplayMemory = None
 optimizer: optim.Adam = None
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+# X = torch.zeros((512, 120, 160, 12)).to(device)
 
 def optimize_model(config):
-    global net, rb, optimizer
+
+    global net, rb, optimizer, X
 
     if len(rb) < config.batch_size:
         return
     
     optimizer.zero_grad()
 
-    data = torch.tensor(rb.sample(config.batch_size, 1 - config.gamma)).to(device) # (states, actions, positive_states, negative_states)
+    data = rb.sample(config.batch_size, 1 - config.gamma) # (states, actions, positive_states, negative_states)
+    states = torch.cat(data[0], device=device)
+    # states = torch.cat(data[0]).to(device)
+    # actions = F.one_hot(torch.from_numpy(data[1])).to(device)
+    # positive_states = torch.cat(data[2]).to(device)
+    # negative_states = torch.cat(data[3]).to(device)
+    # # y = X.sum()
+    # # X = X + y
+    # for i in range(X.shape[0]):
+    #     X[i] = data[0][i].to(device)
 
-    positive_results = net.forward(data[0], data[1], data[2])
-    negative_results = net.forward(data[0], data[1], data[3])
+    # print(data)
+    # data = torch.tensor(rb.sample(config.batch_size, 1 - config.gamma)).to(device) # (states, actions, positive_states, negative_states)
 
-    loss = torch.sum(torch.log(torch.sigmoid(positive_results)) - torch.log(1 - torch.sigmoid(negative_results)))
+    # positive_results = net.forward(data[0], data[1], data[2])
+    # negative_results = net.forward(data[0], data[1], data[3])
 
-    loss.backward()
+    # loss = torch.sum(torch.log(torch.sigmoid(positive_results)) - torch.log(1 - torch.sigmoid(negative_results)))
 
-    optimizer.step()
+    # loss.backward()
+
+    # optimizer.step()
 
 def train(config):
     global net, rb, optimizer
     print('--- start creating models and utilities ---')
     net = QNet(config, device).to(device)
     optimizer = optim.Adam(net.parameters(), lr=config.lr)
-    rb  = ReplayMemory(config)
+    rb  = ReplayMemory(config, device)
 
     print('--- create the environment ---')
     env: habitat.Env = get_environment(config.sim, config.config_path)
-    agent = RandomAgent(env, config)
+    agent = RandomAgent(env, config, device)
     
     print('--- start the learning section ---')
     
@@ -67,28 +82,30 @@ def train(config):
         put_mark_on_map(map, env)
         current_state = agent.get_full_obs()
 
-
+        print(f' ----- this it the initial loc : {initial_loc} ----- ')
         for step in tqdm(range(config.episode_len)):
         # for step in range(config.episode_len):
             put_mark_on_map(map, env)
             best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
-                                                 torch.tensor(goal_state).to(device).unsqueeze(0), device)
+                                                 torch.tensor(goal_state).to(device).unsqueeze(0),
+                                                 greedy=True, p=1)
+            # print(best_action_id)
             best_action = get_action_by_id(best_action_id)
 
             agent.take_action(best_action)
+
             next_state = agent.get_full_obs()
             
-            rb.push((current_state, best_action, next_state, episode, step))
+            rb.push((current_state, best_action_id, next_state, episode, step))
 
             optimize_model(config)
 
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
-                break
-        
+                break        
             
             current_state = next_state
         
-        plt.imsave(f'map{episode}.jpg', map)
+        plt.imsave(f'images/map_episode_{episode}.jpg', map)
 
 
 
@@ -121,7 +138,7 @@ if __name__ == '__main__':
 
     # Q-value learning network structure
     parser.add_argument('--lr', type=float, default=0.1) # TODO : needs to be set appropriately
-    parser.add_argument('--obs_dim', type=tuple, default=(640, 480)) # TODO: is it a good choice?
+    parser.add_argument('--obs_dim', type=tuple, default=(120, 160)) # TODO: is it a good choice?
     parser.add_argument('--obs_channel', type=int, default=12) # Four images, each has three channels
     parser.add_argument('--latent_dim', type=int, default=32) # TODO: is it a good choice?
     parser.add_argument('--action_dim', type=int, default=4) # {Forward, Backward, Left, Right}
@@ -132,8 +149,8 @@ if __name__ == '__main__':
     parser.add_argument('--reply_buffer_len', type=int, default=1000 * 1000)
 
     # Running configurations
-    parser.add_argument('--episode', type=int, default=1)
-    parser.add_argument('--episode_len', type=int, default=1000)
+    parser.add_argument('--episode', type=int, default=10)
+    parser.add_argument('--episode_len', type=int, default=500)
     
     # Enivornment and Agent configurations
     parser.add_argument('--sim', type=str, default='habitat', help='habitat')
