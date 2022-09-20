@@ -96,8 +96,8 @@ class RandomAgent:
                 else:
                     res = np.concatenate((res, self.env.render(mode='rgb')), axis=2) # shape format : HWC 
             self.env.step(get_action('turn_right'))
-        return res.astype(np.float32)
-        # return torch.from_numpy(res.astype(np.float32))
+        # return res.astype(np.float32)
+        return torch.from_numpy(res.astype(np.float32)).unsqueeze(0) / 256.0
         # return torch.from_numpy(res.astype(np.float32)).to(self.device)
 
 

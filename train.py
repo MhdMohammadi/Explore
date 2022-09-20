@@ -1,3 +1,6 @@
+from asyncio import FastChildWatcher
+from os import access
+from turtle import pos
 import habitat
 import argparse
 from models import QNet, ReplayMemory
@@ -17,7 +20,8 @@ net: QNet = None
 rb: ReplayMemory = None
 optimizer: optim.Adam = None
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-# X = torch.zeros((512, 120, 160, 12)).to(device)
+
+loss_value = []
 
 def optimize_model(config):
 
@@ -29,27 +33,21 @@ def optimize_model(config):
     optimizer.zero_grad()
 
     data = rb.sample(config.batch_size, 1 - config.gamma) # (states, actions, positive_states, negative_states)
-    states = torch.cat(data[0], device=device)
-    # states = torch.cat(data[0]).to(device)
-    # actions = F.one_hot(torch.from_numpy(data[1])).to(device)
-    # positive_states = torch.cat(data[2]).to(device)
-    # negative_states = torch.cat(data[3]).to(device)
-    # # y = X.sum()
-    # # X = X + y
-    # for i in range(X.shape[0]):
-    #     X[i] = data[0][i].to(device)
 
-    # print(data)
-    # data = torch.tensor(rb.sample(config.batch_size, 1 - config.gamma)).to(device) # (states, actions, positive_states, negative_states)
+    positive_results = net(data[0], data[1], data[2])
+    negative_results = net(data[0], data[1], data[3])
 
-    # positive_results = net.forward(data[0], data[1], data[2])
-    # negative_results = net.forward(data[0], data[1], data[3])
+    # print('pos', positive_results)
+    # print('neg', negative_results)
 
-    # loss = torch.sum(torch.log(torch.sigmoid(positive_results)) - torch.log(1 - torch.sigmoid(negative_results)))
+    # loss = -(torch.mean(torch.sigmoid(positive_results) - (1 - torch.sigmoid(negative_results))))
+    loss = -(torch.mean(torch.log(torch.sigmoid(positive_results)) + torch.log(1 - torch.sigmoid(negative_results))))
 
-    # loss.backward()
+    loss_value.append(loss.item())
 
-    # optimizer.step()
+    loss.backward()
+
+    optimizer.step()
 
 def train(config):
     global net, rb, optimizer
@@ -89,22 +87,26 @@ def train(config):
             best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
                                                  torch.tensor(goal_state).to(device).unsqueeze(0),
                                                  greedy=True, p=1)
-            # print(best_action_id)
             best_action = get_action_by_id(best_action_id)
 
             agent.take_action(best_action)
 
             next_state = agent.get_full_obs()
+
+            # if step % 20 == 0:
+            #     plt.imsave(f'images/obs_{step}.jpg', current_state[0,  :, :, :3].numpy())
             
             rb.push((current_state, best_action_id, next_state, episode, step))
 
-            optimize_model(config)
 
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
                 break        
             
             current_state = next_state
-        
+
+        for _ in range(10):
+            optimize_model(config)
+
         plt.imsave(f'images/map_episode_{episode}.jpg', map)
 
 
@@ -119,25 +121,16 @@ def train(config):
 # However, I'm giving more probability to the last element, and it makes the sampling inaccurate. But, I guess it's gonna be ok. 
 #  TODO: some of the variables are spcified in the code such as: get_full_obs -> steps / Environment ->  
 # TODO: I'm not sure if I'm adding correct transitions in reply buffer, because of the last transition.
+# TODO: Any preprocessing on images to make the learning quicker
 
 if __name__ == '__main__':
-    # config = {
-    #     'obs_dim' : (256, 256),
-    #     'obs_channel' : 3,
-    #     'action_dim' : 4,
-    #     'fc_dim' : 32,
-    #     'reply_buffer_len' : 1000 * 1000,
-    #     'episode': 100,
-    #     'episode_len': 100
-    # }
-
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
     
     # MDP hyperparameters
-    parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--gamma', type=float, default=0.9)
 
     # Q-value learning network structure
-    parser.add_argument('--lr', type=float, default=0.1) # TODO : needs to be set appropriately
+    parser.add_argument('--lr', type=float, default=1e-4) # TODO : needs to be set appropriately
     parser.add_argument('--obs_dim', type=tuple, default=(120, 160)) # TODO: is it a good choice?
     parser.add_argument('--obs_channel', type=int, default=12) # Four images, each has three channels
     parser.add_argument('--latent_dim', type=int, default=32) # TODO: is it a good choice?
@@ -150,7 +143,7 @@ if __name__ == '__main__':
 
     # Running configurations
     parser.add_argument('--episode', type=int, default=10)
-    parser.add_argument('--episode_len', type=int, default=500)
+    parser.add_argument('--episode_len', type=int, default=1000)
     
     # Enivornment and Agent configurations
     parser.add_argument('--sim', type=str, default='habitat', help='habitat')
@@ -167,3 +160,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train(args)
+
+    print(loss_value)
+    plt.plot(loss_value)
+    plt.savefig(f'images/loss.jpg')

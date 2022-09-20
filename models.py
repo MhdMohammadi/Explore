@@ -7,6 +7,7 @@ import torchvision.models.resnet as resnet
 from collections import namedtuple, deque
 import numpy as np
 import random
+import matplotlib.pyplot as plt
 
 ## Discription of the net for learning Q-values
 # self.image_encoder: an encoder that takes observastions (images) and maps it to a vector
@@ -28,17 +29,22 @@ class QNet(nn.Module):
             return (dim - kernel + 1 + 2 * padding + stride - 1) // stride 
 
         # image encoder -> equal to atari torso from acme.jax.networks.atari
+        # TODO: It's not anymore! 
         self.image_encoder = self.state_backbone = nn.Sequential(
             nn.Conv2d(config.obs_channel, 32, 8, 4), nn.ReLU(),
             nn.Conv2d(32, 64, 4, 2), nn.ReLU(),
+            nn.Conv2d(64, 64, 4, 2), nn.ReLU(),
             nn.Conv2d(64, 64, 3, 1), nn.ReLU(),
             nn.Flatten(),
         )
 
         new_dim = get_new_dim(np.array(config.obs_dim), 8, 4, 0)
         new_dim = get_new_dim(new_dim, 4, 2, 0)
+        new_dim = get_new_dim(new_dim, 4, 2, 0)
         new_dim = get_new_dim(new_dim, 3, 1, 0)
         new_dim = np.prod(new_dim) * 64 
+
+        print(new_dim)
 
         ## state-action encode
         self.sa_encoder = nn.Sequential(
@@ -56,9 +62,9 @@ class QNet(nn.Module):
 
 
     def forward(self, current_states, current_actions, goal_states):
-        current_states = torch.tensor(current_states).to(self.device).permute(0, 3, 1, 2)
-        goal_states = torch.tensor(goal_states).to(self.device).permute(0, 3, 1, 2)
-        current_actions = F.one_hot(torch.tensor(current_actions).to(self.device))
+        current_states = torch.cat(current_states).to(self.device).permute(0, 3, 1, 2)
+        goal_states = torch.cat(goal_states).to(self.device).permute(0, 3, 1, 2)
+        current_actions = F.one_hot(torch.from_numpy(current_actions).to(self.device), num_classes=self.action_dim)
 
         current_states = self.image_encoder(current_states)
         goal_states = self.image_encoder(goal_states)
@@ -75,13 +81,12 @@ class QNet(nn.Module):
             if rnd < p:
                 return np.random.randint(0, self.action_dim)
 
-        all_actions = F.one_hot(torch.arange(0, self.action_dim)).to(self.device)
         batch_size = current_states.shape[0]
 
         results = torch.zeros((batch_size, self.action_dim)).to(self.device)
         with torch.no_grad():
             for i in range(self.action_dim):
-                actions = [i] * batch_size
+                actions = np.array([i] * batch_size)
                 results[:, i] = self.forward(current_states, actions, goal_states)
 
 
@@ -114,9 +119,7 @@ class ReplayMemory(object):
 
         indices = np.array(random.sample(range(0, len(self.memory)), k=batch_size))
 
-        # states = [torch.from_numpy(self.memory[id].state) for id in indices]
         states = [self.memory[id].state for id in indices]
-
         actions = [self.memory[id].action for id in indices] 
 
         max_delta_indices = np.array([self.end_idx[self.memory[id].episode] - self.memory[id].idx for id in indices])
@@ -127,9 +130,16 @@ class ReplayMemory(object):
 
         positive_states = [self.memory[id].state for id in positive_indices]
         negative_states = [self.memory[id].state for id in negative_indices]
+      
+
+        # print([self.memory[id].episode for id in indices])
+        # for i in range(0, batch_size, 20):
+        #     plt.imsave(f'images/pos_{i}.jpg', positive_states[i][0, :, :, :3].numpy())
+        #     plt.imsave(f'images/normal_{i}.jpg', states[i][0, :, :, :3].numpy())
+        #     plt.imsave(f'images/neg_{i}.jpg', negative_states[i][0, :, :, :3].numpy())
+            
         # positive_states = [torch.from_numpy(self.memory[id].state) for id in positive_indices]
         # negative_states = [torch.from_numpy(self.memory[id].state) for id in negative_indices]
-
 
         return [states, np.array(actions), positive_states, negative_states]
 
