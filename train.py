@@ -1,19 +1,16 @@
-from asyncio import FastChildWatcher
-from os import access
-from turtle import pos
-import habitat
 import argparse
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import os
+
+import habitat
+import torch.optim as optim
+import torch
+
 from models import QNet, ReplayMemory
 from Environment import is_done, get_environment, get_action_by_id
 from Agent import RandomAgent
-import torch.optim as optim
-import torch.nn as nn
-import torch.nn.functional as F 
-import torch
-import numpy as np
-from tqdm import tqdm
 from visual import get_unseen_map, put_mark_on_map
-import matplotlib.pyplot as plt
 
 
 net: QNet = None
@@ -24,7 +21,6 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 loss_value = []
 
 def optimize_model(config):
-
     global net, rb, optimizer, X
 
     if len(rb) < config.batch_size:
@@ -34,13 +30,10 @@ def optimize_model(config):
 
     data = rb.sample(config.batch_size, 1 - config.gamma) # (states, actions, positive_states, negative_states)
 
+    # TODO: read models.py because torch.inner is a wrong way to comute phi.T /times psi
     positive_results = net(data[0], data[1], data[2])
     negative_results = net(data[0], data[1], data[3])
 
-    # print('pos', positive_results)
-    # print('neg', negative_results)
-
-    # loss = -(torch.mean(torch.sigmoid(positive_results) - (1 - torch.sigmoid(negative_results))))
     loss = -(torch.mean(torch.log(torch.sigmoid(positive_results)) + torch.log(1 - torch.sigmoid(negative_results))))
 
     loss_value.append(loss.item())
@@ -50,6 +43,17 @@ def optimize_model(config):
     optimizer.step()
 
 def train(config):
+    print('--- start creating corresponding directories ---')
+    save_dir = f'{config.save_root}/episode_{config.episode}_episodelen_{config.episode_len}_lr_{config.lr}_gamma_{config.gamma}' 
+    os.mkdir(save_dir)
+    model_dir = f'{save_dir}/models'
+    os.mkdir(model_dir)
+    images_dir = f'{save_dir}/images'
+    os.mkdir(images_dir)
+   
+    eval_dir = f'{save_dir}/evals'
+    os.mkdir(eval_dir)
+
     global net, rb, optimizer
     print('--- start creating models and utilities ---')
     net = QNet(config, device).to(device)
@@ -61,10 +65,8 @@ def train(config):
     agent = RandomAgent(env, config, device)
     
     print('--- start the learning section ---')
-    
     for episode in range(config.episode):
-        print(f'--- epislon {episode} has been started ---')
-
+        print(f'--- episode {episode} has been started ---')
         env.reset()
  
         map = get_unseen_map(env, config.resolution)
@@ -80,9 +82,10 @@ def train(config):
         put_mark_on_map(map, env)
         current_state = agent.get_full_obs()
 
+        # TODO: eps
+        
         print(f' ----- this it the initial loc : {initial_loc} ----- ')
         for step in tqdm(range(config.episode_len)):
-        # for step in range(config.episode_len):
             put_mark_on_map(map, env)
             best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
                                                  torch.tensor(goal_state).to(device).unsqueeze(0),
@@ -90,25 +93,23 @@ def train(config):
             best_action = get_action_by_id(best_action_id)
 
             agent.take_action(best_action)
-
             next_state = agent.get_full_obs()
-
-            # if step % 20 == 0:
-            #     plt.imsave(f'images/obs_{step}.jpg', current_state[0,  :, :, :3].numpy())
-            
+           
             rb.push((current_state, best_action_id, next_state, episode, step))
-
-
+            
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
                 break        
-            
             current_state = next_state
 
+        # TODO: make this a parameter
         for _ in range(10):
             optimize_model(config)
 
-        plt.imsave(f'images/map_episode_{episode}.jpg', map)
-
+        # Save the trajectory visualizaiton
+        plt.imsave(f'images/map_episode_{episode}.jpg', map) # save in a local address
+        plt.imsave(f'{images_dir}/map_episode_{episode}.jpg', map) # save in a global storage
+        
+        torch.save(net.state_dict(), f'{model_dir}/episode_{episode}.pth') # save in a global storage
 
 
 # TODO: Visualization for how a model is navigating
@@ -122,21 +123,25 @@ def train(config):
 #  TODO: some of the variables are spcified in the code such as: get_full_obs -> steps / Environment ->  
 # TODO: I'm not sure if I'm adding correct transitions in reply buffer, because of the last transition.
 # TODO: Any preprocessing on images to make the learning quicker
+# TODO: resume
+# TODO: WANDB
+# TODO: finishing constrain is not good enough
+# TODO: add eval mode as well
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
     
     # MDP hyperparameters
-    parser.add_argument('--gamma', type=float, default=0.9)
+    parser.add_argument('--gamma', type=float, default=0.99)
 
     # Q-value learning network structure
     parser.add_argument('--lr', type=float, default=1e-4) # TODO : needs to be set appropriately
     parser.add_argument('--obs_dim', type=tuple, default=(120, 160)) # TODO: is it a good choice?
     parser.add_argument('--obs_channel', type=int, default=12) # Four images, each has three channels
-    parser.add_argument('--latent_dim', type=int, default=32) # TODO: is it a good choice?
+    parser.add_argument('--latent_dim', type=int, default=64) # TODO: is it a good choice?
     parser.add_argument('--action_dim', type=int, default=4) # {Forward, Backward, Left, Right}
-    parser.add_argument('--fc_dim', type=int, default=128) # TODO: is it a good choice?
-    parser.add_argument('--batch_size', type=int, default=512) 
+    parser.add_argument('--fc_dim', type=int, default=256) # TODO: is it a good choice?
+    parser.add_argument('--batch_size', type=int, default=128) 
 
     # Reply buffer
     parser.add_argument('--reply_buffer_len', type=int, default=1000 * 1000)
