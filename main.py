@@ -150,6 +150,7 @@ def run(config):
 # TODO: add eval mode as well
 # TODO: Clean code and documentation
 # TODO: TSNE
+# TODO: do something about the replay buffer
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
@@ -178,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--eps_decay', type=float, default=1/500)
 
     # Running configurations
-    parser.add_argument('--episode', type=int, default=10)
+    parser.add_argument('--episode', type=int, default=600)
     parser.add_argument('--episode_len', type=int, default=1000)
     parser.add_argument('--optimization_steps', type=int, default=64)
     
