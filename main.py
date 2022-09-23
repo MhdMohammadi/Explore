@@ -64,6 +64,8 @@ def run(config):
     global net, rb, optimizer
     print('--- start creating models and utilities ---')
     net = QNet(config, device).to(device)
+    if config.mode == 'eval':
+        net.load_state_dict(torch.load(f'{model_dir}/{config.model_address}'))
     # TODO: resume
     
     if config.mode == 'train':
@@ -92,12 +94,12 @@ def run(config):
         put_mark_on_map(map, env)
         current_state = agent.get_full_obs()
 
-        # TODO: eps   
+        eps = max(config.min_eps, config.max_eps - episode * config.eps_decay) if config.mode == 'train' else 0
         for step in tqdm(range(config.episode_len)):
             put_mark_on_map(map, env)
             best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
                                                  torch.tensor(goal_state).to(device).unsqueeze(0),
-                                                 greedy=True, p=1)
+                                                 greedy=True, p=eps)
             best_action = get_action_by_id(best_action_id)
 
             agent.take_action(best_action)
@@ -106,8 +108,8 @@ def run(config):
             if config.mode == 'train':          
                 rb.push((current_state, best_action_id, next_state, episode, step))
             else:
-                # save images from the current trajectory
-                pass
+                plt.imsave(f'images/eval_{episode}_step_{step}.jpg', map) # save in a local address
+                plt.imsave(f'{eval_dir}/eval_{episode}_step_{step}.jpg', map) # save in a local address
             
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
                 break        
@@ -128,9 +130,9 @@ def run(config):
             plt.savefig(f'images/loss.jpg')
 
         else:
-            # Is there anything that we should do here?
-            pass
-
+            plt.imsave(f'images/final_eval_{episode}.jpg', map) # save in a local address
+            plt.imsave(f'{eval_dir}/final_eval_{episode}.jpg', map) # save in a local address
+            
 # TODO: Visualization for how a model is navigating
 # TODO: I believe the image encoder is not good enough
 # TODO: Data should be on CUDA, but it's not yet.
@@ -147,6 +149,7 @@ def run(config):
 # TODO: finishing constrain is not good enough
 # TODO: add eval mode as well
 # TODO: Clean code and documentation
+# TODO: TSNE
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
@@ -189,6 +192,10 @@ if __name__ == '__main__':
     parser.add_argument('--agent_mode', type=str, default='4_direction', help='random, repeated_random, 4_direction')
     parser.add_argument('--agent_repeat', type=int, default=1)
     parser.add_argument('--save_root', type=str, default='/scratch/mohammad/palmer++')
+    
+    # Evaluation
+    parser.add_argument('--model_address', type=str, default='episode_100.pth')
+    
 
     # Parse hyperpatemeres
 
