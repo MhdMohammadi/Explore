@@ -50,13 +50,11 @@ class QNet(nn.Module):
         self.sa_encoder = nn.Sequential(
             nn.Linear(new_dim + config.action_dim, config.fc_dim), nn.ReLU(), 
             nn.Linear(config.fc_dim, config.fc_dim), nn.ReLU(), 
-            nn.Linear(config.fc_dim, config.fc_dim), nn.ReLU(), 
             nn.Linear(config.fc_dim, config.latent_dim))
 
         ## state encoder
         self.s_encoder = nn.Sequential(
             nn.Linear(new_dim, config.fc_dim), nn.ReLU(), 
-            nn.Linear(config.fc_dim, config.fc_dim), nn.ReLU(), 
             nn.Linear(config.fc_dim, config.fc_dim), nn.ReLU(), 
             nn.Linear(config.fc_dim, config.latent_dim))
 
@@ -73,7 +71,7 @@ class QNet(nn.Module):
         sa_repr = self.sa_encoder(joint_current_states_actions)
         s_repr = self.s_encoder(goal_states)
 
-        return torch.inner(sa_repr, s_repr)
+        return (sa_repr * s_repr).sum(axis=1)
 
     def get_best_action(self, current_states, goal_states, greedy=False, p=0):
         if greedy:
