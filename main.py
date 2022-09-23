@@ -1,14 +1,17 @@
 import argparse
+from re import T
 from turtle import pos
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
 import habitat
 import torch.optim as optim
 import torch
 
-from models import QNet, ReplayMemory
+from models import QNet
+
 from Environment import is_done, get_environment, get_action_by_id
 from Agent import RandomAgent
 from visual import put_mark_on_map, get_topdown_map
@@ -18,7 +21,8 @@ rb: ReplayMemory = None
 optimizer: optim.Adam = None
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-loss_value = []
+loss_values = []
+episode_loss_values = []
 positive_results_means = []
 negative_results_means = []
 
@@ -32,7 +36,6 @@ def optimize_model(config):
 
     data = rb.sample(config.batch_size, 1 - config.gamma) # (states, actions, positive_states, negative_states)
 
-    # TODO: read models.py because torch.inner is a wrong way to comute phi.T /times psi
     positive_results = net(data[0], data[1], data[2])
     negative_results = net(data[0], data[1], data[3])
 
@@ -41,7 +44,7 @@ def optimize_model(config):
 
     loss = -(torch.mean(torch.log(torch.sigmoid(positive_results)) + torch.log(1 - torch.sigmoid(negative_results))))
 
-    loss_value.append(loss.item())
+    episode_loss_values.append(loss.item())
 
     loss.backward()
 
@@ -54,6 +57,7 @@ def run(config):
     images_dir = f'{save_dir}/images'
     eval_dir = f'{save_dir}/evals'
         
+    os.makedirs('images', exist_ok=True)
     if config.mode == 'train':
         os.mkdir(save_dir)
         os.mkdir(model_dir)
@@ -70,7 +74,7 @@ def run(config):
     
     if config.mode == 'train':
         optimizer = optim.Adam(net.parameters(), lr=config.lr)
-        rb = ReplayMemory(config, device)
+        rb = ReplayMemory(config)
 
     print('--- create the environment ---')
     env: habitat.Env = get_environment(config.sim, config.config_path)
@@ -114,9 +118,12 @@ def run(config):
                 break        
             current_state = next_state
 
+        global loss_values, episode_loss_values
+        episode_loss_values = []
         print('--- optimization has been started ---')
         for _ in tqdm(range(config.optimization_steps)):
             optimize_model(config)
+        loss_values.append(np.mean(episode_loss_values))
 
         if config.mode == 'train':
             # Save the trajectory visualizaiton
@@ -125,7 +132,7 @@ def run(config):
             
             torch.save(net.state_dict(), f'{model_dir}/episode_{episode}.pth') # save in a global storage
             
-            plt.plot(loss_value)
+            plt.plot(loss_values)
             plt.savefig(f'images/loss.jpg')
 
         else:
@@ -151,6 +158,8 @@ def run(config):
 # TODO: TSNE
 # TODO: do something about the replay buffer
 # TODO: change unsqueeze as the warning mentioned 
+# TODO: check if replay buffer is fine with indices larger than the max length
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
     
@@ -169,8 +178,8 @@ if __name__ == '__main__':
     parser.add_argument('--fc_dim', type=int, default=256) # TODO: is it a good choice?
     parser.add_argument('--batch_size', type=int, default=128) 
 
-    # Reply buffer
-    parser.add_argument('--reply_buffer_len', type=int, default=1000 * 1000)
+    # Dataset
+    parser.add_argument('--dataset_max_size', type=int, default=3 * 1000)
 
     # epsilon-greedy parameters
     parser.add_argument('--max_eps', type=float, default=1.0)
@@ -178,9 +187,9 @@ if __name__ == '__main__':
     parser.add_argument('--eps_decay', type=float, default=1/500)
 
     # Running configurations
-    parser.add_argument('--episode', type=int, default=600)
+    parser.add_argument('--episode', type=int, default=500)
     parser.add_argument('--episode_len', type=int, default=1000)
-    parser.add_argument('--optimization_steps', type=int, default=64)
+    parser.add_argument('--optimization_steps', type=int, default=128)
     
     # Enivornment and Agent configurations
     parser.add_argument('--sim', type=str, default='habitat', help='habitat')
@@ -191,14 +200,13 @@ if __name__ == '__main__':
     parser.add_argument('--seen_map_path', type=str, default='images/seen_map')
     parser.add_argument('--agent_mode', type=str, default='4_direction', help='random, repeated_random, 4_direction')
     parser.add_argument('--agent_repeat', type=int, default=1)
-    parser.add_argument('--save_root', type=str, default='/scratch/mohammad/palmer++')
+    parser.add_argument('--save_root', type=str, default='/scratch/mohammad/palmer++/episode_500_episodelen_1000_lr_0.0001_gamma_0.99')
     
     # Evaluation
-    parser.add_argument('--model_address', type=str, default='episode_100.pth')
+    parser.add_argument('--model_address', type=str, default='episode_200.pth')
     
 
     # Parse hyperpatemeres
-
     args = parser.parse_args()
 
     run(args)
