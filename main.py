@@ -81,7 +81,7 @@ def run(config):
         print(f'--- episode {episode} has been started ---')
         env.reset()
  
-        map = get_topdown_map(env, config.resolution)
+        map = get_topdown_map(env, config.resolution) * 0.5
         
         initial_loc = env.sim.sample_navigable_point()
         goal_loc = env.sim.sample_navigable_point()
@@ -95,11 +95,10 @@ def run(config):
         current_state = agent.get_full_obs()
 
         eps = max(config.min_eps, config.max_eps - episode * config.eps_decay) if config.mode == 'train' else 0
+        print(f'epsilon in this episode is equal to {eps}')
         for step in tqdm(range(config.episode_len)):
             put_mark_on_map(map, env)
-            best_action_id = net.get_best_action(torch.tensor(current_state).to(device).unsqueeze(0), 
-                                                 torch.tensor(goal_state).to(device).unsqueeze(0),
-                                                 greedy=True, p=eps)
+            best_action_id = net.get_best_action([current_state], [goal_state], greedy=True, p=eps)
             best_action = get_action_by_id(best_action_id)
 
             agent.take_action(best_action)
@@ -151,7 +150,7 @@ def run(config):
 # TODO: Clean code and documentation
 # TODO: TSNE
 # TODO: do something about the replay buffer
-
+# TODO: change unsqueeze as the warning mentioned 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
     

@@ -44,8 +44,6 @@ class QNet(nn.Module):
         new_dim = get_new_dim(new_dim, 3, 1, 0)
         new_dim = np.prod(new_dim) * 64 
 
-        print(new_dim)
-
         ## state-action encode
         self.sa_encoder = nn.Sequential(
             nn.Linear(new_dim + config.action_dim, config.fc_dim), nn.ReLU(), 
@@ -79,7 +77,7 @@ class QNet(nn.Module):
             if rnd < p:
                 return np.random.randint(0, self.action_dim)
 
-        batch_size = current_states.shape[0]
+        batch_size = len(current_states)
 
         results = torch.zeros((batch_size, self.action_dim)).to(self.device)
         with torch.no_grad():
