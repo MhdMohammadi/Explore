@@ -12,7 +12,6 @@ from Environment import is_done, get_environment, get_action_by_id
 from Agent import RandomAgent
 from visual import get_unseen_map, put_mark_on_map
 
-
 net: QNet = None
 rb: ReplayMemory = None
 optimizer: optim.Adam = None
@@ -42,23 +41,28 @@ def optimize_model(config):
 
     optimizer.step()
 
-def train(config):
+def run(config):
     print('--- start creating corresponding directories ---')
     save_dir = f'{config.save_root}/episode_{config.episode}_episodelen_{config.episode_len}_lr_{config.lr}_gamma_{config.gamma}' 
-    os.mkdir(save_dir)
     model_dir = f'{save_dir}/models'
-    os.mkdir(model_dir)
     images_dir = f'{save_dir}/images'
-    os.mkdir(images_dir)
-   
     eval_dir = f'{save_dir}/evals'
-    os.mkdir(eval_dir)
+        
+    if config.mode == 'train':
+        os.mkdir(save_dir)
+        os.mkdir(model_dir)
+        os.mkdir(images_dir)
+    else:
+        os.mkdir(eval_dir)
 
     global net, rb, optimizer
     print('--- start creating models and utilities ---')
     net = QNet(config, device).to(device)
-    optimizer = optim.Adam(net.parameters(), lr=config.lr)
-    rb  = ReplayMemory(config, device)
+    # TODO: resume
+    
+    if config.mode == 'train':
+        optimizer = optim.Adam(net.parameters(), lr=config.lr)
+        rb = ReplayMemory(config, device)
 
     print('--- create the environment ---')
     env: habitat.Env = get_environment(config.sim, config.config_path)
@@ -82,8 +86,7 @@ def train(config):
         put_mark_on_map(map, env)
         current_state = agent.get_full_obs()
 
-        # TODO: eps
-        
+        # TODO: eps   
         print(f' ----- this it the initial loc : {initial_loc} ----- ')
         for step in tqdm(range(config.episode_len)):
             put_mark_on_map(map, env)
@@ -94,8 +97,12 @@ def train(config):
 
             agent.take_action(best_action)
             next_state = agent.get_full_obs()
-           
-            rb.push((current_state, best_action_id, next_state, episode, step))
+
+            if config.mode == 'train':          
+                rb.push((current_state, best_action_id, next_state, episode, step))
+            else:
+                # save images from the current trajectory
+                pass
             
             if is_done(env.sim.get_agent(0).get_state().position, goal_loc):
                 break        
@@ -105,12 +112,15 @@ def train(config):
         for _ in range(10):
             optimize_model(config)
 
-        # Save the trajectory visualizaiton
-        plt.imsave(f'images/map_episode_{episode}.jpg', map) # save in a local address
-        plt.imsave(f'{images_dir}/map_episode_{episode}.jpg', map) # save in a global storage
-        
-        torch.save(net.state_dict(), f'{model_dir}/episode_{episode}.pth') # save in a global storage
-
+        if config.mode == 'train':
+            # Save the trajectory visualizaiton
+            plt.imsave(f'images/map_episode_{episode}.jpg', map) # save in a local address
+            plt.imsave(f'{images_dir}/map_episode_{episode}.jpg', map) # save in a global storage
+            
+            torch.save(net.state_dict(), f'{model_dir}/episode_{episode}.pth') # save in a global storage
+        else:
+            # Is there anything that we should do here?
+            pass
 
 # TODO: Visualization for how a model is navigating
 # TODO: I believe the image encoder is not good enough
@@ -130,6 +140,9 @@ def train(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Define hyperparameters.')
+    
+    # Code mode
+    parser.add_argument('--mode', type=str, default='train', help='train, eval')
     
     # MDP hyperparameters
     parser.add_argument('--gamma', type=float, default=0.99)
@@ -164,7 +177,7 @@ if __name__ == '__main__':
     # Parse hyperpatemeres
     args = parser.parse_args()
 
-    train(args)
+    run(args)
 
     print(loss_value)
     plt.plot(loss_value)
