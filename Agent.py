@@ -1,4 +1,3 @@
-from cgi import print_arguments
 from habitat.core.simulator import Observations
 import numpy as np
 import habitat

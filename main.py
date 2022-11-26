@@ -1,6 +1,5 @@
 import argparse
 from re import T
-from turtle import pos
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import os
@@ -15,6 +14,7 @@ from models import QNet
 from Environment import is_done, get_environment, get_action_by_id
 from Agent import RandomAgent
 from visual import put_mark_on_map, get_topdown_map
+from datasets import ReplayMemory
 
 net: QNet = None
 rb: ReplayMemory = None
@@ -88,6 +88,8 @@ def run(config):
         map = get_topdown_map(env, config.resolution) * 0.5
         
         initial_loc = env.sim.sample_navigable_point()
+        print(initial_loc)
+        return
         goal_loc = env.sim.sample_navigable_point()
 
         agent.set_position(goal_loc)
@@ -129,15 +131,13 @@ def run(config):
             # Save the trajectory visualizaiton
             plt.imsave(f'images/map_episode_{episode}.jpg', map) # save in a local address
             plt.imsave(f'{images_dir}/map_episode_{episode}.jpg', map) # save in a global storage
-            
             torch.save(net.state_dict(), f'{model_dir}/episode_{episode}.pth') # save in a global storage
-            
             plt.plot(loss_values)
             plt.savefig(f'images/loss.jpg')
 
         else:
             plt.imsave(f'images/final_eval_{episode}.jpg', map) # save in a local address
-            plt.imsave(f'{eval_dir}/final_eval_{episode}.jpg', map) # save in a local address
+            plt.imsave(f'{eval_dir}/final_eval_{episode}.jpg', map) # save in a global address
             
 # TODO: Visualization for how a model is navigating
 # TODO: I believe the image encoder is not good enough

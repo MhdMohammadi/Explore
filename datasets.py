@@ -63,7 +63,7 @@ class ReplayMemory(object):
 
 # When a very fast drive is available, it is better to avoid storing all the data in RAM
 # Dataset
-class CustomizedDataset(Dataset):
+class CustomedDataset(Dataset):
     def __init__(self, config):
         self.current_size = config.dataset_max_size
         self.max_size = config.dataset_max_size
